@@ -40,6 +40,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         double ret = 0;
         double pos = 0;
+
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
@@ -68,21 +69,24 @@ namespace NinjaTrader.NinjaScript.Strategies
                 // +------------------------------------------------------------+
                 // | parameters for MT4/5 Settings
                 // +------------------------------------------------------------+
-                pc_risk = 2;
-                pc_id = "";
-                pc_prefix = "";
+                pc_risk = 2;        // default value : 2 , step : 0.1 , min value : 0
+                pc_id = "";         // defval : "" , 
+                pc_prefix = "";     // defval : ""
 
                 // +------------------------------------------------------------+
                 // | EMA
                 // +------------------------------------------------------------+
-                ema_len = 200;
-                ema2_len = 800;
+                ema_src = close;     // defval : close , inline = "1"
+                ema_len = 200 ;      // defval: 200 , inline = "1"
+
+                ema2_src = close;    // defval : close , inline = "2"
+                ema2_len = 800;      // defval: 200 , inline = "2"
 
                 // +------------------------------------------------------------+
                 // | EMA
                 // +------------------------------------------------------------+
-                Length = 21;
-                Multiplier = 3;
+                Length = 200;        // defval : 200 , minval = "1"
+                Multiplier = 3;      // defval: 3 , minval = "0.000001"
 
                 // +------------------------------------------------------------+
                 // | Volume Based Coloured Bars
@@ -104,16 +108,19 @@ namespace NinjaTrader.NinjaScript.Strategies
             }
             else if (State == State.DataLoaded)
             {
-                ema = EMA(ema_len);
-                AddChartIndicator(ema);
-                ChartIndicators[0].Plots[0].Brush = Brushes.Purple;
-                ChartIndicators[0].Plots[0].Width = 3;
+                if (showEma1) {
+                    ema = EMA(ema_len);
+                    AddChartIndicator(ema);
+                    ChartIndicators[0].Plots[0].Brush = Brushes.Purple;
+                    ChartIndicators[0].Plots[0].Width = 3;
+                }
 
-
-                ema2 = EMA(ema2_len);
-                AddChartIndicator(ema2);
-                ChartIndicators[1].Plots[0].Brush = Brushes.Orange;
-                ChartIndicators[1].Plots[0].Width = 3;
+                if (showEma2) {
+                    ema2 = EMA(ema2_len);
+                    AddChartIndicator(ema2);
+                    ChartIndicators[1].Plots[0].Brush = Brushes.Orange;
+                    ChartIndicators[1].Plots[0].Width = 3;
+                }
             }
         }
         protected override void OnBarUpdate()
@@ -127,7 +134,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             Strategy_4();
             Strategy_5();
         }
-
+ 
         protected void TrendTraderStrategy()
         {
             int Length = 21;
@@ -197,7 +204,6 @@ namespace NinjaTrader.NinjaScript.Strategies
             double longStopPrice = 0.0; 
             double shortStopPrice = 0.0;
 
-            if(Position.Quantity)
             longStopPrice = if (strategy.position_size > 0)
                 stopValue = close * (1 - longTrailPerc)
                 math.max(stopValue, longStopPrice[1], buy1_sl)
@@ -226,53 +232,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         protected void Strategy_2()
         {
-double sps = Position.Quantity;
-            bool buy1 = volu1 & CrossAbove(Close, ret, 1) & Close[0] > ema[0] & Close[0] > ema2[0] & sps == 0;
-            bool sell1 = vold1 & CrossBelow(Close, ret, 1) & Close[0] < ema[0] & Close[0] < ema2[0] & sps == 0;
-            double buy1_sl = 0;
-            double sell1_sl = 0;
 
-            if (buy1 & sps== 0)
-            {
-                EnterLong("Buy1");
-                buy1_sl = Low[1];
-            }
-
-            if (sell1 & sps== 0)
-            {
-                EnterShort("Sell1");
-                sell1_sl = High[1];
-            }
-
-            double shortTrailPerc = longTrailPerc; // input.float(title="Trail Short Loss (%)" , minval=0.0, step=0.1, defval=1) * 0.01
-
-            // Determine trail stop loss prices
-            double longStopPrice = 0.0; 
-            double shortStopPrice = 0.0;
-
-            if(Position.Quantity)
-            longStopPrice = if (strategy.position_size > 0)
-                stopValue = close * (1 - longTrailPerc)
-                math.max(stopValue, longStopPrice[1], buy1_sl)
-            else
-                0
-
-            shortStopPrice:= if (strategy.position_size < 0)
-                stopValue = close * (1 + shortTrailPerc)
-                math.min(stopValue, shortStopPrice[1], sell1_sl)
-            else
-                999999
-
-
-
-            long_sl1 = longStopPrice
-            short_sl1 = shortStopPrice
-            strategy.exit("Ex-Buy1", "Buy1", stop = long_sl1, alert_message = closelong)
-            strategy.exit("Ex-Sell1", "Sell1", stop = short_sl1, alert_message = closeshort)
-
-
-            plotshape(buy1 ? low : na, title = "Buy1", text = "Buy1", location = location.belowbar, style = shape.labelup, size = size.tiny, color = color.green, textcolor = color.white)
-            plotshape(sell1 ? high : na, title = "Sell1", text = "Sell1", location = location.abovebar, style = shape.labeldown, size = size.tiny, color = color.red, textcolor = color.white)
         }
         protected void Strategy_3()
         {
@@ -287,10 +247,10 @@ double sps = Position.Quantity;
 
         }
 
-
+        #region Properties   
 
         // +------------------------------------------------------------+
-        // | MT4/5 Settings
+        // | MT4/5  (order 1)
         // +------------------------------------------------------------+
         [NinjaScriptProperty]
         [Display(Name = "Qty", Order = 1, GroupName = "MT4/5 Settings", Description = "Risk")]
@@ -308,39 +268,57 @@ double sps = Position.Quantity;
         { get; set; }
 
         // +------------------------------------------------------------+
-        // | EMA
+        // | EMA (order 2)
         // +------------------------------------------------------------+
-        //[NinjaScriptProperty]
-        //[Display(Name = "EMA1 Src", Order = 1, GroupName = "EMA", Description = "EMA source")]
-        //public float ema_src
-        //{ get; set; }
-
+        
+            // EMA 1
         [NinjaScriptProperty]
-        [Display(Name = "Len", Order = 1, GroupName = "EMA", Description = "EMA source")]
-        public int ema_len
+        [Display(Name = "Show EMA_1 Indicator", Order = 1, GroupName = "EMA", Description = "Show EMA_1 indicator on chart")]
+        public bool showEma1
         { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Len", Order = 1, GroupName = "EMA", Description = "EMA source")]
+        [Display(Name = "EMA1 Src", Order = 2, GroupName = "EMA", Description = "EMA source")]
+        public int ema_src
+        { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "EMA1 Len", Order = 3, GroupName = "EMA", Description = "EMA source")]
+        public int ema_len
+        { get; set; }
+
+            // EMA 2
+        [NinjaScriptProperty]
+        [Display(Name = "Show EMA_2 Indicator", Order = 4, GroupName = "EMA", Description = "Show EMA_2 indicator on chart")]
+        public bool showEma2
+        { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "EMA2 Src", Order = 5, GroupName = "EMA", Description = "EMA source")]
+        public int ema2_src
+        { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "EMA2 Len", Order = 6, GroupName = "EMA", Description = "EMA source")]
         public int ema2_len
         { get; set; }
 
         // +------------------------------------------------------------+
-        // | Trend Trader Strategy
+        // | Trend Trader Strategy (grp3)
         // +------------------------------------------------------------+
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name = "Len", Order = 1, GroupName = "Trend Trader Strategy", Description = "EMA source")]
+        [Display(Name = "Length", Order = 1, GroupName = "Trend Trader Strategy", Description = "EMA source")]
         public int Length
         { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Len", Order = 2, GroupName = "Trend Trader Strategy", Description = "EMA source")]
+        [Display(Name = "Multiplier", Order = 2, GroupName = "Trend Trader Strategy", Description = "EMA source")]
         public double Multiplier
         { get; set; }
 
         // +------------------------------------------------------------+
-        // | Volume Based Coloured Bars
+        // | Volume Based Coloured Bars (grp4)
         // +------------------------------------------------------------+
         [NinjaScriptProperty]
         [Range(1, int.MaxValue)]
@@ -355,5 +333,7 @@ double sps = Position.Quantity;
         [Display(Name = "Trail S.Loss (%)", Order = 4, GroupName = "Strategy 1", Description = "This is your broker's MetaTrader symbol name")]
         public double longTrailPerc
         { get; set; }
+
+        #endregion
     }
 }
