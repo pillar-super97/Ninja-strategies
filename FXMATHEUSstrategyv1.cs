@@ -197,6 +197,7 @@ namespace NinjaTrader.NinjaScript.Strategies
             double longStopPrice = 0.0; 
             double shortStopPrice = 0.0;
 
+            if(Position.Quantity)
             longStopPrice = if (strategy.position_size > 0)
                 stopValue = close * (1 - longTrailPerc)
                 math.max(stopValue, longStopPrice[1], buy1_sl)
@@ -225,7 +226,53 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         protected void Strategy_2()
         {
+double sps = Position.Quantity;
+            bool buy1 = volu1 & CrossAbove(Close, ret, 1) & Close[0] > ema[0] & Close[0] > ema2[0] & sps == 0;
+            bool sell1 = vold1 & CrossBelow(Close, ret, 1) & Close[0] < ema[0] & Close[0] < ema2[0] & sps == 0;
+            double buy1_sl = 0;
+            double sell1_sl = 0;
 
+            if (buy1 & sps== 0)
+            {
+                EnterLong("Buy1");
+                buy1_sl = Low[1];
+            }
+
+            if (sell1 & sps== 0)
+            {
+                EnterShort("Sell1");
+                sell1_sl = High[1];
+            }
+
+            double shortTrailPerc = longTrailPerc; // input.float(title="Trail Short Loss (%)" , minval=0.0, step=0.1, defval=1) * 0.01
+
+            // Determine trail stop loss prices
+            double longStopPrice = 0.0; 
+            double shortStopPrice = 0.0;
+
+            if(Position.Quantity)
+            longStopPrice = if (strategy.position_size > 0)
+                stopValue = close * (1 - longTrailPerc)
+                math.max(stopValue, longStopPrice[1], buy1_sl)
+            else
+                0
+
+            shortStopPrice:= if (strategy.position_size < 0)
+                stopValue = close * (1 + shortTrailPerc)
+                math.min(stopValue, shortStopPrice[1], sell1_sl)
+            else
+                999999
+
+
+
+            long_sl1 = longStopPrice
+            short_sl1 = shortStopPrice
+            strategy.exit("Ex-Buy1", "Buy1", stop = long_sl1, alert_message = closelong)
+            strategy.exit("Ex-Sell1", "Sell1", stop = short_sl1, alert_message = closeshort)
+
+
+            plotshape(buy1 ? low : na, title = "Buy1", text = "Buy1", location = location.belowbar, style = shape.labelup, size = size.tiny, color = color.green, textcolor = color.white)
+            plotshape(sell1 ? high : na, title = "Sell1", text = "Sell1", location = location.abovebar, style = shape.labeldown, size = size.tiny, color = color.red, textcolor = color.white)
         }
         protected void Strategy_3()
         {
